@@ -1,10 +1,13 @@
 import type { GetServerSidePropsContext } from "next";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 import { z } from "zod";
 
 import { Booker } from "@calcom/atoms";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { getBookerWrapperClasses } from "@calcom/features/bookings/Booker/utils/getBookerWrapperClasses";
 import { BookerSeo } from "@calcom/features/bookings/components/BookerSeo";
+import { useTimePreferences } from "@calcom/features/bookings/lib";
 import {
   getBookingForReschedule,
   getBookingForSeatedEvent,
@@ -16,6 +19,7 @@ import { getUsernameList } from "@calcom/lib/defaultEvents";
 import slugify from "@calcom/lib/slugify";
 import prisma from "@calcom/prisma";
 import { RedirectType } from "@calcom/prisma/client";
+import { trpc } from "@calcom/trpc/react";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
 import type { EmbedProps } from "@lib/withEmbedSsr";
@@ -38,6 +42,18 @@ export default function Type({
   entity,
   duration,
 }: PageProps) {
+  const { data, isLoading } = trpc.viewer.public.cityTimezones.useQuery(undefined, {
+    trpc: { context: { skipBatch: true } },
+  });
+  const router = useRouter();
+  const { query } = router;
+  const { setTimezone } = useTimePreferences();
+  useEffect(() => {
+    if (!isLoading && query.tz && data.find((d) => d.timezone === query.tz)) {
+      setTimezone(query.tz);
+    }
+  }, [query.tz, setTimezone, data, isLoading]);
+
   return (
     <main className={getBookerWrapperClasses({ isEmbed: !!isEmbed })}>
       <BookerSeo
